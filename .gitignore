@@ -21,6 +21,8 @@ venv/
 checkpoints_hqfr/
 hqfr-dennis/analysis_figures/
 hqfr-dennis/analysis_tables/
+hqfr-ragu/analysis_figures/
+hqfr-ragu/analysis_tables/
 
 # Local logs / temp
 *.log
