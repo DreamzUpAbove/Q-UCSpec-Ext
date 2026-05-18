@@ -42,12 +42,12 @@ Three spectral descriptors extracted from LR-TDDFT simulations (defined in confi
 
 After Phase 2, the optimal classification threshold is found by sweeping 0.30–0.70 (step 0.02) and maximizing F1-score on the validation set.
 
-![Pipeline Architecture](images/architecture_preview.png)
+![Pipeline Architecture](hqfr-dennis/images/architecture_preview.png)
 
 ### Repository Structure
 
 ```
-hqfr
+hqfr-dennis
 ├── config.py
 ├── preprocessing.py
 ├── pre_quantum_nn.py

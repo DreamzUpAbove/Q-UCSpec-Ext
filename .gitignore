@@ -1,0 +1,27 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+
+# Generated experiment outputs
+checkpoints_hqfr/
+hqfr-dennis/analysis_figures/
+hqfr-dennis/analysis_tables/
+
+# Local logs / temp
+*.log
+*.tmp

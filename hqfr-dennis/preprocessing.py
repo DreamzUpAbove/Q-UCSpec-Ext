@@ -62,11 +62,6 @@ def load_and_preprocess(data_dir=None, random_state=None, verbose=True):
     X = df[FEATURE_COLUMNS].values
     y = df["label"].values
 
-    # Calculate pos_weight for class imbalance handling
-    n_class_0 = int(np.sum(y == 0))
-    n_class_1 = int(np.sum(y == 1))
-    pos_weight = n_class_0 / n_class_1
-
     # Stratified split: 70% train, 15% val, 15% test
     X_temp, X_test, y_temp, y_test = train_test_split(
         X, y, test_size=TEST_RATIO, stratify=y, random_state=random_state
@@ -87,6 +82,11 @@ def load_and_preprocess(data_dir=None, random_state=None, verbose=True):
     X_train = transformer.fit_transform(X_train)
     X_val = transformer.transform(X_val)
     X_test = transformer.transform(X_test)
+
+    # Calculate pos_weight from training split only (no validation/test leakage)
+    n_class_0 = int(np.sum(y_train == 0))
+    n_class_1 = int(np.sum(y_train == 1))
+    pos_weight = n_class_0 / n_class_1
 
     if verbose:
         print("=" * 60)

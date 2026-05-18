@@ -6,7 +6,7 @@ Training Strategy:
   - Quantum layer FROZEN
   - Pre-NN, Post-NN, circuit_scale optimized with Adam
 
-- Phase 2: Quantum fine-tuning (20 epochs default)
+- Phase 2: Quantum fine-tuning (100 epochs default)
   - Classical layers FROZEN
   - Only quantum layer optimized with lower learning rate
 
@@ -33,7 +33,7 @@ from config import (
 
 
 def find_best_threshold(model, val_loader, device="cpu"):
-    """Find optimal classification threshold using F1-score."""
+    """Find optimal classification threshold using validation F1-score."""
     model.eval()
     all_probs, all_labels = [], []
 
@@ -55,8 +55,9 @@ def find_best_threshold(model, val_loader, device="cpu"):
 
     best_threshold = 0.5
     best_f1 = 0.0
+    threshold_grid = np.linspace(0.30, 0.70, num=21)  # Inclusive range, step=0.02
 
-    for threshold in np.arange(0.3, 0.7, 0.02):
+    for threshold in threshold_grid:
         preds = (all_probs > threshold).astype(float)
         tp = ((preds == 1) & (all_labels == 1)).sum()
         fp = ((preds == 1) & (all_labels == 0)).sum()
@@ -74,7 +75,14 @@ def find_best_threshold(model, val_loader, device="cpu"):
             best_f1 = f1
             best_threshold = threshold
 
-    return best_threshold
+    return {
+        "threshold": float(best_threshold),
+        "f1": float(best_f1),
+        "grid_start": float(threshold_grid[0]),
+        "grid_stop": float(threshold_grid[-1]),
+        "grid_step": 0.02,
+        "n_candidates": len(threshold_grid),
+    }
 
 
 def _train_epoch(
@@ -82,6 +90,13 @@ def _train_epoch(
 ):
     """Single training epoch."""
     model.train()
+    # In phase 2, keep frozen classical blocks in eval mode so BatchNorm/Dropout
+    # do not keep changing while only the quantum layer is being optimized.
+    if getattr(model, "_classical_frozen", False):
+        if hasattr(model, "pre_quantum"):
+            model.pre_quantum.eval()
+        if hasattr(model, "post_quantum"):
+            model.post_quantum.eval()
     train_loss, train_correct, train_total = 0.0, 0, 0
 
     for batch_x, batch_y in train_loader:
@@ -205,6 +220,7 @@ def train_hqfr(
             "circuit_scale": [],
         },
         "best_threshold": 0.5,
+        "threshold_selection": {},
     }
 
     # ==================== PHASE 1: Classical Pre-training ====================
@@ -378,13 +394,33 @@ def train_hqfr(
                     print(f"\n⏹ Phase 2 early stopping at epoch {epoch + 1}")
                 break
 
+    # Reload best phase-2 checkpoint before threshold selection/evaluation.
+    best_phase2_path = save_dir / "best_model_phase2.pth"
+    if best_phase2_path.exists():
+        best_ckpt = torch.load(best_phase2_path, map_location=device)
+        model.load_state_dict(best_ckpt["model_state_dict"])
+        if verbose:
+            best_epoch = int(best_ckpt.get("epoch", -1)) + 1
+            print(
+                f"\n  Restored best Phase 2 checkpoint "
+                f"(epoch={best_epoch}, val_loss={best_ckpt['val_loss']:.4f})"
+            )
+
     # Find optimal threshold
     if verbose:
         print("\n  Finding optimal classification threshold...")
-    best_threshold = find_best_threshold(model, val_loader, device)
+    threshold_info = find_best_threshold(model, val_loader, device)
+    best_threshold = threshold_info["threshold"]
     history["best_threshold"] = best_threshold
+    history["threshold_selection"] = threshold_info
     if verbose:
-        print(f"  Optimal threshold: {best_threshold:.2f}")
+        print(
+            f"  Optimal threshold: {best_threshold:.2f} "
+            f"(val F1={threshold_info['f1']:.4f}, "
+            f"grid={threshold_info['grid_start']:.2f}-"
+            f"{threshold_info['grid_stop']:.2f} "
+            f"step {threshold_info['grid_step']:.2f})"
+        )
 
     # Save final model and history
     torch.save(
