@@ -56,7 +56,7 @@ FEATURE_COLUMNS = [
 ]
 
 # Data files (relative to project root)
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 CAF2_FILE = "caf2_qml_full_descriptors.csv"
 CAF2_ER_FILE = "caf2_er_qml_full_descriptors.csv"
 
